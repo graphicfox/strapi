@@ -3,7 +3,6 @@
 const inquirer = require('inquirer');
 const axios = require('axios');
 const yaml = require('js-yaml');
-const logger = require('./logger');
 
 /**
  * @param {Object} projectArgs - The arguments needed to create a project
@@ -14,13 +13,24 @@ const logger = require('./logger');
  */
 module.exports = async function promptUser(projectArgs) {
   const questions = await getPromptQuestions(projectArgs);
-  const prompt = await inquirer.prompt(questions);
-
-  return prompt;
+  return inquirer.prompt(questions);
 };
 
-async function getPromptOptions() {
+/**
+ *
+ * @returns Prompt question object
+ */
+async function getStarterQuestion() {
   const content = await getStarterData();
+
+  // Fallback to manual input when fetch fails
+  if (!content) {
+    return {
+      type: 'input',
+      message: 'Please provide the GitHub URL for the starter you would like to use:',
+    };
+  }
+
   const options = content.map(option => {
     const name = option.title.replace('Starter', '');
 
@@ -30,12 +40,23 @@ async function getPromptOptions() {
     };
   });
 
-  return options;
+  return {
+    type: 'list',
+    message:
+      'Which starter would you like to use? (Starters are fullstack Strapi applications designed for a specific use case)',
+    pageSize: options.length,
+    choices: options,
+  };
 }
 
-async function getPromptQuestions(projectArgs, cliType) {
+/**
+ *
+ * @param {Object} projectArgs - The arguments needed to create a project
+ * @returns Array of prompt question objects
+ */
+async function getPromptQuestions(projectArgs) {
   const { projectName, starterUrl, useQuickstart } = projectArgs;
-  const choices = await getPromptOptions(cliType);
+  const starterQuestion = await getStarterQuestion();
 
   return [
     {
@@ -43,16 +64,12 @@ async function getPromptQuestions(projectArgs, cliType) {
       default: projectName || 'my-strapi-project',
       name: 'directory',
       message: 'What would you like to name your project?',
-      when: !projectName || !starterUrl,
+      when: !projectName,
     },
     {
-      type: 'list',
-      name: 'selected',
-      message:
-        'Which starter would you like to use? (Starters are fullstack Strapi applications designed for a specific use case)',
-      pageSize: choices.length,
-      choices,
+      name: 'starter',
       when: !starterUrl,
+      ...starterQuestion,
     },
     {
       type: 'list',
@@ -80,13 +97,11 @@ async function getStarterData() {
     } = await axios.get(
       `https://api.github.com/repos/strapi/community-content/contents/starters/starters.yml`
     );
-
     const buff = Buffer.from(content, 'base64');
     const stringified = buff.toString('utf-8');
 
     return yaml.load(stringified);
   } catch (error) {
-    logger.error('Failed to fetch starter data');
-    process.exit(1);
+    return null;
   }
 }

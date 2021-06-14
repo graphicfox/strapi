@@ -30,6 +30,15 @@ program
   .action((directory, starterUrl, programArgs) => {
     const projectArgs = { projectName: directory, starterUrl };
 
+    if (programArgs.quickstart && (directory === undefined || starterUrl == undefined)) {
+      console.error(
+        'Please specify the <directory> and <starterurl> of your project when using --quickstart'
+      );
+
+      // eslint-disable-next-line no-process-exit
+      process.exit(1);
+    }
+
     buildStarter(projectArgs, programArgs).catch(error => {
       console.error(error.message);
       process.exit(1);

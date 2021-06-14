@@ -38,13 +38,17 @@ async function initProject(projectName, program) {
   const useQuickstart = program.quickstart !== undefined;
 
   const options = {};
-  const prompt = await promptUser(
-    { projectName, template: program.template, useQuickstart },
-    'templates'
-  );
+  const prompt = await promptUser({ projectName, template: program.template, useQuickstart });
   projectName = prompt.directory || projectName;
-  options.template = prompt.selected || program.template;
+  options.template = prompt.template || program.template;
   options.quickstart = prompt.quick || program.quickstart;
+
+  if (program.quickstart && projectName === undefined) {
+    console.error('Please specify the <directory> of your project when using --quickstart');
+
+    // eslint-disable-next-line no-process-exit
+    process.exit(1);
+  }
 
   const generateStrapiAppOptions = {
     ...program,

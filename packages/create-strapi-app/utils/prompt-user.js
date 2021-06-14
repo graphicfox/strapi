@@ -3,7 +3,6 @@
 const inquirer = require('inquirer');
 const axios = require('axios');
 const yaml = require('js-yaml');
-const logger = require('../../create-strapi-starter/utils/logger');
 
 /**
  * @param {Object} projectArgs - The arguments needed to create a project
@@ -15,13 +14,20 @@ const logger = require('../../create-strapi-starter/utils/logger');
  */
 module.exports = async function promptUser(projectArgs) {
   const questions = await getPromptQuestions(projectArgs);
-  const prompt = await inquirer.prompt(questions);
-
-  return prompt;
+  return inquirer.prompt(questions);
 };
 
-async function getPromptOptions() {
+async function getTemplateQuestion() {
   const content = await getTemplateData(`templates/templates.yml`);
+
+  // Fallback to manual input when fetch fails
+  if (!content) {
+    return {
+      type: 'input',
+      message: 'Please provide the GitHub URL for your starter:',
+    };
+  }
+
   const options = content.map(option => {
     const name = option.title.replace('Template', '');
     return {
@@ -30,30 +36,33 @@ async function getPromptOptions() {
     };
   });
 
-  return options;
+  const separator = new inquirer.Separator();
+  const choices = [{ name: 'None', value: null }, separator, ...options];
+
+  return {
+    type: 'list',
+    message: `Would you like to use a template? (Templates are Strapi configurations designed for a specifc use case)`,
+    pageSize: choices.length,
+    choices,
+  };
 }
 
 async function getPromptQuestions(projectArgs) {
   const { projectName, template, useQuickstart } = projectArgs;
-  const options = await getPromptOptions();
-  const separator = new inquirer.Separator();
-  const choices = [{ name: 'None', value: null }, separator, ...options];
+  const templateQuestion = await getTemplateQuestion();
 
   return [
     {
       type: 'input',
-      default: projectName || 'my-strapi-project',
+      default: 'my-strapi-project',
       name: 'directory',
       message: 'What would you like to name your project?',
-      when: !projectName || !template,
+      when: !projectName,
     },
     {
-      type: 'list',
-      name: 'selected',
-      message: `Would you like to use a template? (Templates are Strapi configurations designed for a specifc use case)`,
-      pageSize: choices.length,
+      name: 'template',
       when: !template,
-      choices,
+      ...templateQuestion,
     },
     {
       type: 'list',
@@ -87,7 +96,6 @@ async function getTemplateData() {
 
     return yaml.load(stringified);
   } catch (error) {
-    logger.error('Failed to fetch template data');
-    process.exit(1);
+    return null;
   }
 }

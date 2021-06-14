@@ -99,11 +99,11 @@ module.exports = async function buildStarter(programArgs, program) {
 
   // Prompt user when an argument is missing
   const options = {};
-  const prompt = await promptUser({ projectName, starterUrl, useQuickstart }, 'starters');
+  const prompt = await promptUser({ projectName, starterUrl, useQuickstart });
 
   // Use prompt values over programArg values
   projectName = prompt.directory || projectName;
-  starterUrl = prompt.selected || starterUrl;
+  starterUrl = prompt.starter || starterUrl;
   options.quickstart = prompt.quick || program.quickstart;
 
   // Fetch repo info
